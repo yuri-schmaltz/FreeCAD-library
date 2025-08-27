@@ -22,7 +22,6 @@
 #*   USA                                                                   *
 #*                                                                         *
 #***************************************************************************
-from __future__ import print_function
 
 __title__="FreeCAD Parts Library Macro"
 __author__ = "Yorik van Havre"
@@ -75,24 +74,24 @@ considered when pushing, so you can place private Parts there.
 
 
 import sys, FreeCAD, FreeCADGui, Part, zipfile, tempfile, Mesh, os, subprocess
+from pathlib import Path
 from PySide import QtGui, QtCore
 
 param = FreeCAD.ParamGet('User parameter:Plugins/parts_library')
 s = param.GetString('destination')
 #print('User parameter:Plugins/partlib : destination : ',s)
 
-try:
-    QtCore.QTextCodec.setCodecForTr(QTextCodec.codecForName("UTF-8"))
-except:
-    pass # Will fallback to Latin-1
-
 if s:
-    LIBRARYPATH = s
+    LIBRARYPATH = Path(s)
 else:
 
-    folderDialog = QtGui.QFileDialog.getExistingDirectory(None,QtGui.QApplication.translate("PartsLibrary", "Location of your existing Parts library"))
-    param.SetString('destination',folderDialog.replace("\\","/")) # forward slashes apparently work on windows too
-    LIBRARYPATH = param.GetString('destination')
+    folderDialog = QtGui.QFileDialog.getExistingDirectory(None, QtGui.QApplication.translate("PartsLibrary", "Location of your existing Parts library"))
+    if not folderDialog:
+        QtGui.QMessageBox.warning(None, "PartsLibrary", "No folder selected. Macro will exit.")
+        raise SystemExit
+    param.SetString('destination', folderDialog.replace("\\","/")) # forward slashes apparently work on windows too
+    LIBRARYPATH = Path(param.GetString('destination'))
+LIBRARYPATH = Path(LIBRARYPATH)
 
 
 def translate(context, text):
@@ -116,14 +115,14 @@ class ExpFileSystemModel(QtGui.QFileSystemModel):
 class ExpDockWidget(QtGui.QDockWidget):
     "a library explorer dock widget"
 
-    def __init__(self,LIBRARYPATH):
+    def __init__(self,LIBRARYPATH: Path):
         QtGui.QDockWidget.__init__(self)
 
         self.setObjectName("PartsLibrary")
 
         # setting up a directory model that shows only fcstd, step and brep
         self.dirmodel = ExpFileSystemModel()
-        self.dirmodel.setRootPath(LIBRARYPATH)
+        self.dirmodel.setRootPath(str(LIBRARYPATH))
         self.dirmodel.setNameFilters(["*.fcstd","*.FcStd","*.FCSTD","*.stp","*.STP","*.step","*.STEP", "*.brp", "*.BRP", "*.brep", "*.BREP"])
         self.dirmodel.setNameFilterDisables(0)
 
@@ -136,7 +135,7 @@ class ExpDockWidget(QtGui.QDockWidget):
         self.folder.hideColumn(1)
         self.folder.hideColumn(2)
         self.folder.hideColumn(3)
-        self.folder.setRootIndex(self.dirmodel.index(LIBRARYPATH))
+        self.folder.setRootIndex(self.dirmodel.index(str(LIBRARYPATH)))
         
         self.preview = QtGui.QLabel()
         self.preview.setFixedHeight(128)
@@ -213,7 +212,7 @@ class ExpDockWidget(QtGui.QDockWidget):
             FreeCAD.Console.PrintWarning("python-git not found. Git-related functions will be disabled\n")
         else:
             try:
-                repo = git.Repo(LIBRARYPATH)
+                repo = git.Repo(str(LIBRARYPATH))
             except:
                 FreeCAD.Console.PrintWarning("Your library is not a valid Git repository. Git-related functions will be disabled\n")
             else:
@@ -267,7 +266,7 @@ class ExpDockWidget(QtGui.QDockWidget):
         FreeCADGui.SendMsgToActiveView("ViewFit")
 
     def addtolibrary(self):
-        fileDialog = QtGui.QFileDialog.getSaveFileName(None,u"Choose category and set a filename without extension", LIBRARYPATH)
+        fileDialog = QtGui.QFileDialog.getSaveFileName(None, u"Choose category and set a filename without extension", str(LIBRARYPATH))
         if fileDialog != '':
             #filename = fileDialog[0].split("/")[-1]
             #if filename.split(".")[-1].lowercase == "fcstd" or "stl
@@ -445,7 +444,7 @@ class ConfigDialog(QtGui.QDialog):
             FreeCAD.ParamGet('User parameter:Plugins/parts_library').SetString('destination',self.lineEdit_3.text())
         QtGui.QDialog.accept(self)
 
-if QtCore.QDir(LIBRARYPATH).exists():
+if QtCore.QDir(str(LIBRARYPATH)).exists():
     m = FreeCADGui.getMainWindow()
     w = m.findChild(QtGui.QDockWidget,"PartsLibrary")
     if w:
