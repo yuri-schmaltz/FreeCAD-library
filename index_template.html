@@ -1,0 +1,132 @@
+<html>
+    <head>
+        <title>FreeCAD Library</title>
+        <style>
+body {
+    font-family: Arial,sans;
+    color: black;
+    background: white;
+}
+a:link, a:visited {
+    color: black;
+    text-decoration: none;
+}
+img {
+    width: 16px;
+}
+h1, h2, h3, h4, h5, h6, .h7, .h8, .h9 {
+    clear: both;
+    margin: 0;
+    cursor: pointer;
+    font-size: 1em;
+}
+.collapsable {
+    border-left: 1px solid grey;
+    padding-left: 8px;
+    margin-left: 5px;
+}
+.cards {
+    margin: 0;
+}
+.card {
+    float:left;
+    width: 128px;
+    margin: 4px;
+}
+.icon {
+    width: 128px;
+}
+.hicon {
+    width: 12px;
+    margin-right: 4px;
+}
+.name {
+    clear: left;
+    float: left;
+    overflow-wrap: break-word;
+    width: 128px;
+}
+.links {
+    float: left;
+}
+.fullwidth {
+    width: 100% !important;
+}
+.smallicon {
+    width: 16px !important;
+    margin-right: 8px;
+    float: left !important;
+}
+.largetext {
+    clear: none !important;
+    width: auto !important;
+    margin-right: 8px;
+}
+.hidden {
+    display: none;
+}
+.iconselected {
+    border: 2px solid black;
+}
+        </style>
+        <script>
+function seticon() {
+    collection = document.getElementsByClassName("card");
+    for (let i = 0; i < collection.length; i++) {
+        collection[i].classList.remove("fullwidth")
+    }
+    collection = document.getElementsByClassName("icon");
+    for (let i = 0; i < collection.length; i++) {
+        collection[i].classList.remove("smallicon")
+    }
+    collection = document.getElementsByClassName("name");
+    for (let i = 0; i < collection.length; i++) {
+        collection[i].classList.remove("largetext")
+    }
+    icon_icon = document.getElementById("icon_icon");
+    icon_icon.classList.add("iconselected")
+    icon_grid = document.getElementById("icon_grid");
+    icon_grid.classList.remove("iconselected")
+}
+function setgrid() {
+    collection = document.getElementsByClassName("card");
+    for (let i = 0; i < collection.length; i++) {
+      collection[i].classList.add("fullwidth")
+    }
+    collection = document.getElementsByClassName("icon");
+    for (let i = 0; i < collection.length; i++) {
+        collection[i].classList.add("smallicon")
+    }
+    collection = document.getElementsByClassName("name");
+    for (let i = 0; i < collection.length; i++) {
+        collection[i].classList.add("largetext")
+    }
+    icon_icon = document.getElementById("icon_icon");
+    icon_icon.classList.remove("iconselected")
+    icon_grid = document.getElementById("icon_grid");
+    icon_grid.classList.add("iconselected")
+}
+function collapse(elt) {
+    ndiv = elt.parentElement.nextSibling.nextSibling;
+    if (ndiv.classList.contains("hidden")) {
+        elt.src = "<!--expandicon-->";
+        ndiv.classList.remove("hidden");
+    } else {
+        elt.src = "<!--collapseicon-->";
+        ndiv.classList.add("hidden");
+    }
+}
+        </script>
+    </head>
+    <body>
+        <div class="nav">
+            <a id="icon_icon" class="navicon iconselected" href="#" title="icon view" onclick="seticon()">
+                <img src="<!--gridicon-->"/>
+            </a>
+            <a id="icon_grid" class="navicon" href="#" title="list view" onclick="setgrid()">
+                <img src="<!--listicon-->"/>
+            </a>
+        </div>
+<!--contents-->
+    </body>
+</html>

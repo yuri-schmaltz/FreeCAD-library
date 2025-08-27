@@ -24,184 +24,49 @@
 """This script produces an index.html file and an images/ folder which
 shows and allows to download the contents of the library"""
 
-import os
+from pathlib import Path
 import zipfile
 import hashlib
-import urllib.request
 import urllib.parse
 
 # path definitions
-homefolder = os.path.abspath(os.curdir)
-imagefolder = "thumbnails"
-htmlfile = os.path.join(homefolder, "index.html")
+homefolder = Path.cwd()
+imagefolder = Path("thumbnails")
+htmlfile = homefolder / "index.html"
+template_path = homefolder / "index_template.html"
 baseurl = "https://github.com/FreeCAD/FreeCAD-library/blob/master/"
-excludelist = ["thumbnails"]
+excludelist = {"thumbnails"}
 
 # icons
-defaulticon = os.path.join(imagefolder, "freecad-document.svg")
-gridicon = os.path.join(imagefolder, "icon-grid.svg")
-listicon = os.path.join(imagefolder, "icon-list.svg")
-stepicon = os.path.join(imagefolder, "icon-grey.svg")
-brepicon = os.path.join(imagefolder, "icon-blue.svg")
-stlicon = os.path.join(imagefolder, "icon-green.svg")
-collapseicon = os.path.join(imagefolder, "icon-right.svg")
-expandicon = os.path.join(imagefolder, "icon-down.svg")
+defaulticon = imagefolder / "freecad-document.svg"
+gridicon = imagefolder / "icon-grid.svg"
+listicon = imagefolder / "icon-list.svg"
+stepicon = imagefolder / "icon-grey.svg"
+brepicon = imagefolder / "icon-blue.svg"
+stlicon = imagefolder / "icon-green.svg"
+collapseicon = imagefolder / "icon-right.svg"
+expandicon = imagefolder / "icon-down.svg"
 
-# html template
-template = """<html>
-    <head>
-        <title>FreeCAD Library</title>
-        <style>
-body {
-    font-family: Arial,sans;
-    color: black;
-    background: white;
-}
-a:link, a:visited {
-    color: black;
-    text-decoration: none;
-}
-img {
-    width: 16px;
-}
-h1, h2, h3, h4, h5, h6, .h7, .h8, .h9 {
-    clear: both;
-    margin: 0;
-    cursor: pointer;
-    font-size: 1em;
-}
-.collapsable {
-    border-left: 1px solid grey;
-    padding-left: 8px;
-    margin-left: 5px;
-}
-.cards {
-    margin: 0;
-}
-.card {
-    float:left;
-    width: 128px;
-    margin: 4px;
-}
-.icon {
-    width: 128px;
-}
-.hicon {
-    width: 12px;
-    margin-right: 4px;
-}
-.name {
-    clear: left;
-    float: left;
-    overflow-wrap: break-word;
-    width: 128px;
-}
-.links {
-    float: left;
-}
-.fullwidth {
-    width: 100% !important;
-}
-.smallicon {
-    width: 16px !important;
-    margin-right: 8px;
-    float: left !important;
-}
-.largetext {
-    clear: none !important;
-    width: auto !important;
-    margin-right: 8px;
-}
-.hidden {
-    display: none;
-}
-.iconselected {
-    border: 2px solid black;
-}
-        </style>
-        <script>
-function seticon() {
-    collection = document.getElementsByClassName("card");
-    for (let i = 0; i < collection.length; i++) {
-        collection[i].classList.remove("fullwidth")
-    }
-    collection = document.getElementsByClassName("icon");
-    for (let i = 0; i < collection.length; i++) {
-        collection[i].classList.remove("smallicon")
-    }
-    collection = document.getElementsByClassName("name");
-    for (let i = 0; i < collection.length; i++) {
-        collection[i].classList.remove("largetext")
-    }
-    icon_icon = document.getElementById("icon_icon");
-    icon_icon.classList.add("iconselected")
-    icon_grid = document.getElementById("icon_grid");
-    icon_grid.classList.remove("iconselected")
-}
-function setgrid() {
-    collection = document.getElementsByClassName("card");
-    for (let i = 0; i < collection.length; i++) {
-      collection[i].classList.add("fullwidth")
-    }
-    collection = document.getElementsByClassName("icon");
-    for (let i = 0; i < collection.length; i++) {
-        collection[i].classList.add("smallicon")
-    }
-    collection = document.getElementsByClassName("name");
-    for (let i = 0; i < collection.length; i++) {
-        collection[i].classList.add("largetext")
-    }
-    icon_icon = document.getElementById("icon_icon");
-    icon_icon.classList.remove("iconselected")
-    icon_grid = document.getElementById("icon_grid");
-    icon_grid.classList.add("iconselected")
-}
-function collapse(elt) {
-    ndiv = elt.parentElement.nextSibling.nextSibling;
-    if (ndiv.classList.contains("hidden")) {
-        elt.src = "<!--expandicon-->";
-        ndiv.classList.remove("hidden");
-    } else {
-        elt.src = "<!--collapseicon-->";
-        ndiv.classList.add("hidden");
-    }
-}
-        </script>
-    </head>
-    <body>
-        <div class="nav">
-            <a id="icon_icon" class="navicon iconselected" href="#" title="icon view" onclick="seticon()">
-                <img src="<!--gridicon-->"/>
-            </a>
-            <a id="icon_grid" class="navicon" href="#" title="list view" onclick="setgrid()">
-                <img src="<!--listicon-->"/>
-            </a>
-        </div>
-<!--contents-->
-    </body>
-</html>"""
+# HTML template is stored externally in index_template.html
 
+def build_html(dirpath: Path, level: int = 1) -> str:
 
-def build_html(dirpath, level=1):
-
-    """walks a directory and builds cards from its contents"""
+    """Walk a directory and build cards from its contents"""
 
     html = ""
-    if os.path.isdir(dirpath):
+    if dirpath.is_dir():
         html += build_title(dirpath, level)
         if level > 1:
-            offset = 5 + (level - 2) * 2
             html += '<div class="collapsable hidden">\n'
-        nodes = os.listdir(dirpath)
-        nodes = [node for node in nodes if node[0] != "."]
-        nodes = [node for node in nodes if node not in excludelist]
-        nodes = [os.path.join(dirpath, node) for node in nodes]
-        dirs = [node for node in nodes if os.path.isdir(node)]
-        dirs = sorted(dirs)
-        files = [node for node in nodes if node.lower().endswith(".fcstd")]
-        files = sorted(files)
+        try:
+            nodes = [p for p in dirpath.iterdir() if not p.name.startswith(".") and p.name not in excludelist]
+        except OSError as err:
+            print(f"Cannot access {dirpath}: {err}")
+            return html
+        dirs = sorted(p for p in nodes if p.is_dir())
+        files = sorted(p for p in nodes if p.suffix.lower() == ".fcstd")
         for fpath in dirs:
-            html += build_html(fpath, level+1)
+            html += build_html(fpath, level + 1)
         if files:
             html += '<div class="cards">\n'
             for fpath in files:
@@ -212,16 +77,16 @@ def build_html(dirpath, level=1):
     return html
 
 
-def build_title(dirpath, level):
+def build_title(dirpath: Path, level: int) -> str:
 
-    """builds an html title from a path"""
+    """Build an HTML title from a path"""
 
     if level == 1:
         # do not print the first-level title
         return ""
     sl = str(level)
-    sn = '<img class="hicon" src="'+collapseicon+'"/>'
-    sn += os.path.basename(dirpath)
+    sn = f'<img class="hicon" src="{clean_path(collapseicon)}"/>'
+    sn += dirpath.name
     if level < 7:
         title = '<h' + sl + ' onclick="collapse(this.children[0])">'
         title += sn + '</h' + sl + '>\n'
@@ -231,37 +96,41 @@ def build_title(dirpath, level):
     return title
 
 
-def build_card(filepath):
+def build_card(filepath: Path) -> str:
 
-    """builds an HTML card for a given file"""
+    """Build an HTML card for a given file"""
 
     print("Building card for", filepath)
     html = ""
-    if os.path.exists(filepath):
-        basename = os.path.splitext(filepath)[0]
-        name = os.path.basename(basename)
+    if filepath.exists():
+        basename = filepath.with_suffix("")
+        name = basename.name
         iconpath = get_icon(filepath)
         raw = "?raw=true"
         fileurl = baseurl + clean_path(filepath) + raw
         html += '<div class="card">'
-        html += '<a title="FCSTD version" href="' + fileurl + '">'
-        html += '<img class="icon" src="' + clean_path(iconpath) + '"/>'
-        html += '<div class="name">' + name + '</div>'
+        html += f'<a title="FCSTD version" href="{fileurl}">'
+        html += f'<img class="icon" src="{clean_path(iconpath)}"/>'
+        html += f'<div class="name">{name}</div>'
         html += '</a>'
         html += '<div class="links">'
-        exts = {'STEP': (".stp", ".step", ".STP", ".STEP"),
-                'BREP': (".brp", ".brep", ".BRP", ".BREP"),
-                'STL':  (".stl", ".STL")}
-        icons = {'STEP': stepicon,
-                 'BREP': brepicon,
-                 'STL': stlicon}
-        for name, exts in exts.items():
-            for ext in exts:
-                if os.path.exists(basename + ext):
-                    exturl = baseurl + clean_path(basename + ext) + raw
-                    html += ' <a href="' + exturl
-                    html += '" title="' + name + ' version">'
-                    html += '<img src="' + icons[name] + '"/>'
+        exts = {
+            'STEP': (".stp", ".step", ".STP", ".STEP"),
+            'BREP': (".brp", ".brep", ".BRP", ".BREP"),
+            'STL': (".stl", ".STL"),
+        }
+        icons = {
+            'STEP': stepicon,
+            'BREP': brepicon,
+            'STL': stlicon,
+        }
+        for name_key, ext_list in exts.items():
+            for ext in ext_list:
+                ext_path = basename.with_suffix(ext)
+                if ext_path.exists():
+                    exturl = baseurl + clean_path(ext_path) + raw
+                    html += f' <a href="{exturl}" title="{name_key} version">'
+                    html += f'<img src="{clean_path(icons[name_key])}"/>'
                     html += '</a>'
                     break
         html += '</div>'  # links
@@ -269,58 +138,61 @@ def build_card(filepath):
     return html
 
 
-def get_icon(filepath):
+def get_icon(filepath: Path) -> Path:
 
-    """returns a thumbnail image path for a given file path"""
+    """Return a thumbnail image path for a given file path"""
 
     iconname = get_hashname(filepath)
-    iconurl = os.path.join(imagefolder, iconname)
-    iconpath = os.path.join(homefolder, iconurl)
+    iconurl = imagefolder / iconname
+    iconpath = homefolder / iconurl
     try:
-        zfile = zipfile.ZipFile(filepath)
+        with zipfile.ZipFile(filepath) as zfile:
+            if "thumbnails/Thumbnail.png" in zfile.namelist():
+                data = zfile.read("thumbnails/Thumbnail.png")
+                with open(iconpath, "wb") as thumb:
+                    thumb.write(data)
+            else:
+                return defaulticon
+    except Exception as err:
+        print(f"Cannot extract icon from {filepath}: {err}")
+        return defaulticon
+    return iconurl if iconpath.exists() else defaulticon
+
+
+def get_hashname(filepath: Path) -> str:
+
+    """Create a png filename for a given file path"""
+
+    cleaned = clean_path(filepath)
+    return hashlib.md5(cleaned.encode()).hexdigest() + ".png"
+
+
+def clean_path(filepath: Path) -> str:
+
+    """Clean a file path into subfolder/subfolder/file form"""
+
+    try:
+        filepath = filepath.resolve()
     except Exception:
-        return defaulticon
-    if "thumbnails/Thumbnail.png" in zfile.namelist():
-        data = zfile.read("thumbnails/Thumbnail.png")
-        thumb = open(iconpath, "wb")
-        thumb.write(data)
-        thumb.close()
-    else:
-        return defaulticon
-    if not os.path.exists(iconpath):
-        return defaulticon
-    return iconurl
-
-
-def get_hashname(filepath):
-
-    """creates a png filename for a given file path"""
-
-    filepath = clean_path(filepath)
-    return hashlib.md5(filepath.encode()).hexdigest()+".png"
-
-
-def clean_path(filepath):
-
-    """cleans a file path into subfolder/subfolder/file form"""
-
-    if filepath.startswith(homefolder):
-        # strip local part od the path
-        filepath = filepath[len(homefolder):]
-    filepath = filepath.replace("\\", "/")
-    if filepath.startswith("/"):
-        filepath = filepath[1:]
-    filepath = urllib.parse.quote(filepath)
-    return filepath
+        filepath = Path(filepath)
+    try:
+        filepath = filepath.relative_to(homefolder)
+    except ValueError:
+        pass
+    filepath_str = str(filepath).replace("\\", "/")
+    if filepath_str.startswith("/"):
+        filepath_str = filepath_str[1:]
+    return urllib.parse.quote(filepath_str)
 
 
 if __name__ == "__main__":
+    template = template_path.read_text()
     html = build_html(homefolder)
     html = template.replace("<!--contents-->", html)
-    html = html.replace("<!--listicon-->", listicon)
-    html = html.replace("<!--gridicon-->", gridicon)
-    html = html.replace("<!--collapseicon-->", collapseicon)
-    html = html.replace("<!--expandicon-->", expandicon)
-    with open(htmlfile, "w") as index:
+    html = html.replace("<!--listicon-->", clean_path(listicon))
+    html = html.replace("<!--gridicon-->", clean_path(gridicon))
+    html = html.replace("<!--collapseicon-->", clean_path(collapseicon))
+    html = html.replace("<!--expandicon-->", clean_path(expandicon))
+    with htmlfile.open("w") as index:
         index.write(html)
     print("Saving", htmlfile, "... All done!")
